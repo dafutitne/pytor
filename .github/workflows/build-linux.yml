@@ -1,0 +1,38 @@
+name: Build Linux Ubuntu 22.04
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-linux.yml'
+      - 'build_linux_compat.py'
+      - 'linux-host-source.zip'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CUDA compiler (no GPU driver)
+        run: |
+          curl -fL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb -o /tmp/cuda-keyring.deb
+          sudo dpkg -i /tmp/cuda-keyring.deb
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++-11 cuda-nvcc-12-8 cuda-cudart-dev-12-8 cuda-driver-dev-12-8
+      - name: Install Python build dependencies
+        run: python -m pip install pyinstaller==6.22.3 numpy==2.5.2 blake3==1.0.11 pyelftools
+      - name: Build and verify on GLIBC 2.35
+        run: python build_linux_compat.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pytor-linux-jammy1
+          path: dist/*
+      - name: Publish verified Linux assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.2.6-jammy1 dist/* --prerelease --title 'Pytor 0.2.6 jammy1 — Linux Ubuntu 22.04 / GLIBC 2.35' --notes 'Rebuilt on Ubuntu 22.04 to remove GLIBC 2.38 requirements. Python runtime, native QTC worker and dependencies audited to GLIBC <=2.35. All 57 packaged GPU modules match brand1. Binary --version, --verify-bundle and --selfcheck-cpu passed on the Ubuntu 22.04 runner. No GPU/pool test in this build. Windows remains brand1. Use the Linux binary from this release on Ubuntu 22.04.'
