@@ -2,14 +2,14 @@
 
 PRL (`pearlhash`) và QTC (`quantus`), Linux/Windows x64. Binary/process `pytor` / `pytor.exe`; agent `pytor/0.2.6`.
 
-[Linux Ubuntu 22.04+: 0.2.6 jammy1](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-jammy1) · [Windows: 0.2.6 brand1](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-brand1)
+[Linux Ubuntu 22.04+: 0.2.6 jammy2](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-jammy2) · [Windows: 0.2.6 brand1](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-brand1)
 
-Linux `brand1` yêu cầu GLIBC 2.38 và không chạy trên Ubuntu 22.04. Hãy dùng `jammy1`, build/kiểm runtime trên Ubuntu 22.04 với GLIBC 2.35; không cần nâng GLIBC hệ thống.
+Linux `brand1` yêu cầu GLIBC 2.38 và không chạy trên Ubuntu 22.04. Hãy dùng `jammy2`, kế thừa runtime Ubuntu 22.04 / GLIBC 2.35 của jammy1 và sửa tương thích PTX cho PRL; không cần nâng GLIBC hệ thống.
 
 ## Ubuntu / Linux — tải trực tiếp, không dùng script cài đặt
 
 ```console
-curl -fL https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy1/pytor-linux-x86_64 -o pytor
+curl -fL https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy2/pytor-linux-x86_64 -o pytor
 chmod +x pytor
 ./pytor --version
 ./pytor --verify-bundle
@@ -57,8 +57,16 @@ Tải `SHA256SUMS` từ cùng release. Linux dùng `sha256sum pytor` và so vớ
 
 ## Phạm vi bản phát hành
 
-Đây là bản đổi branding/log từ Kaetech. Linux dựa trên test16; Windows dựa trên test14/windows-test5. 57 module GPU trong mỗi gói giữ nguyên byte. Không có tối ưu GPU mới trong lượt đổi tên này.
+Linux jammy2 kế thừa runtime và native worker của jammy1, vốn được build và kiểm trên Ubuntu 22.04 / GLIBC 2.35. Jammy2 thay năm module PRL PTX bằng bản CUDA 12.8.93; 52 module GPU khác giữ nguyên. Binary jammy2 đã chạy kiểm version, integrity, CPU và GPU/pool trên RTX 3090; kết quả cụ thể ở phần dưới. Không sửa lỗi khởi tạo CUDA 999.
 
-Windows đã kiểm chạy binary, tên process, integrity, CPU selfcheck và PRL startup bằng GPU giả lập + TCP localhost. Frontend/default log QTC đã kiểm bằng fixture. Linux jammy1 đã chạy `--version`, `--verify-bundle`, `--selfcheck-cpu` trên runner Ubuntu 22.04; toàn bộ ELF trong gói đã kiểm yêu cầu GLIBC không vượt 2.35. Native QTC worker được biên dịch lại trên Ubuntu 22.04; geometry/block selection giữ theo source hiện có. 57 module PTX/cubin giữ nguyên byte so với brand1. Chưa đo lại GPU/pool cho bản branding; Windows GPU vẫn chưa được kiểm thực tế. Không sửa lỗi khởi tạo CUDA 999.
+Windows brand1 dựa trên test14/windows-test5. Windows đã kiểm runtime, tên process, integrity, CPU selfcheck, PRL startup bằng GPU giả lập và frontend QTC bằng fixture; GPU Windows chưa kiểm thực tế.
 
-`build-info.json` và `branding-validation.json` ghi phạm vi kiểm tra. Repository này phân phối binary, tài liệu và bộ build Linux tương thích Ubuntu 22.04 (script/workflow/source host QTC). Source code ZIP/tar GitHub tự sinh chưa phải bộ source miner hoàn chỉnh; bộ build dùng payload/kernel từ release brand1 đã ghim SHA256.
+Repository phân phối binary, tài liệu và bộ build jammy1 cho Ubuntu 22.04 (script/workflow/source host QTC). Source code ZIP/tar GitHub tự sinh chưa phải bộ source miner hoàn chỉnh. Xem build-info.json của đúng release để biết phạm vi kiểm chứng.
+
+## Linux jammy2: tương thích PRL driver 570
+
+Năm module PRL đã được biên dịch lại bằng CUDA 12.8.93 / PTX 8.7 để sửa lỗi 222; runtime jammy1 và 52 module GPU còn lại giữ nguyên. Kiểm trên RTX 3090 / driver 570.211.01: 56 proof SM86 và 4 proof portable đạt; một lượt kiểm tương thích pool có 1 accepted / 0 rejected qua relay/tunnel.
+
+Đo riêng 120,193 giây sau khi dừng miner khác: trung bình 118,56 TH/s, cửa sổ sau khởi động 119,2–120,5 TH/s tại 300 W; lượt đo này có 0 accepted / 0 rejected. Chưa đối chiếu A/B bn, chưa kiểm ổn định dài hạn. QTC trên driver 570 chưa kiểm lại. Không gồm patch RTX8000 thử nghiệm; Windows vẫn là brand1.
+
+Dừng miner khác trên cùng GPU trước khi đo. Thông tin và checksum có trong release jammy2.
