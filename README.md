@@ -2,14 +2,14 @@
 
 PRL (`pearlhash`) và QTC (`quantus`), Linux/Windows x64. Binary/process `pytor` / `pytor.exe`; agent `pytor/0.2.6`.
 
-[Linux Ubuntu 22.04+: 0.2.6 jammy2](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-jammy2) · [Windows: 0.2.6 brand1](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-brand1)
+[Linux Ubuntu 22.04+: 0.2.6 jammy3](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-jammy3) · [Windows: 0.2.6 brand1](https://github.com/dafutitne/pytor/releases/tag/v0.2.6-brand1)
 
 Linux `brand1` yêu cầu GLIBC 2.38 và không chạy trên Ubuntu 22.04. Hãy dùng `jammy2`, kế thừa runtime Ubuntu 22.04 / GLIBC 2.35 của jammy1 và sửa tương thích PTX cho PRL; không cần nâng GLIBC hệ thống.
 
 ## Ubuntu / Linux — tải trực tiếp, không dùng script cài đặt
 
 ```console
-curl -fL https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy2/pytor-linux-x86_64 -o pytor
+curl -fL https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy3/pytor-linux-x86_64 -o pytor
 chmod +x pytor
 ./pytor --version
 ./pytor --verify-bundle
@@ -70,3 +70,8 @@ Năm module PRL đã được biên dịch lại bằng CUDA 12.8.93 / PTX 8.7 �
 Đo riêng 120,193 giây sau khi dừng miner khác: trung bình 118,56 TH/s, cửa sổ sau khởi động 119,2–120,5 TH/s tại 300 W; lượt đo này có 0 accepted / 0 rejected. Chưa đối chiếu A/B bn, chưa kiểm ổn định dài hạn. QTC trên driver 570 chưa kiểm lại. Không gồm patch RTX8000 thử nghiệm; Windows vẫn là brand1.
 
 Dừng miner khác trên cùng GPU trước khi đo. Thông tin và checksum có trong release jammy2.
+
+
+## Banner terminal jammy3
+
+Khi chạy PRL hoặc QTC, terminal in `Starting matrix` trước khi khởi tạo backend. Chỉ đổi thông báo và phiên bản entry point; 57 module GPU, native worker và toàn bộ runtime còn lại giữ nguyên so với jammy2. Hai nhánh khởi động đã kiểm với backend giả lập; không chạy lại GPU/pool cho thay đổi nhãn này. Windows vẫn dùng brand1.
