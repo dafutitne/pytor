@@ -40,6 +40,7 @@ for name,digest in original_modules.items():assert new_manifest[name]==digest,na
 (payload/'standalone-manifest.json').write_text(json.dumps(new_manifest,indent=2))
 datas=[(str(p),p.name if p.is_dir() else '.') for p in payload.iterdir() if p.name!='scripts']
 binaries=[(str(p),'scripts') for p in scripts.glob('*.so')]
+bootstrap=r/'bootstrap';bootstrap.mkdir(exist_ok=True);shutil.copy2(r/'loader.py',bootstrap/'loader.py')
 hidden=modules+['argparse','base64','ctypes','gzip','hmac','importlib','io','json','select','socket','struct','subprocess','tempfile','threading','traceback','dataclasses','concurrent.futures','cryptography.hazmat.primitives.asymmetric.x25519','cryptography.hazmat.primitives.kdf.hkdf','cryptography.hazmat.primitives.ciphers.aead']
 spec=root/'pytor-protected.spec'
 spec.write_text('''from PyInstaller.utils.hooks import collect_all
@@ -50,7 +51,7 @@ for module in ['numpy','blake3','cryptography']:
  d,b,h=collect_all(module);datas+=d;binaries+=b;hiddenimports+=h
 a=Analysis([%r],pathex=[%r],binaries=binaries,datas=datas,hiddenimports=hiddenimports,excludes=['pytest','IPython','matplotlib','scipy','pandas','sympy','Cython','setuptools'])
 appmods=set(%r)
-assert not any(row[0] in appmods for row in a.pure)
+assert not any(row[0] in appmods for row in a.pure),[(row[0],row[1]) for row in a.pure if row[0] in appmods]
 fixed={}
 for name,path,kind in a.binaries:
  if name.split('/')[-1].split('.')[0] in appmods:name='scripts/'+name.split('/')[-1]
@@ -59,7 +60,7 @@ for name,path,kind in a.binaries:
 a.binaries=list(fixed.values())
 pyz=PYZ(a.pure)
 exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='pytor',debug=False,strip=False,upx=False,console=True)
-'''%(datas,binaries,hidden,str(r/'loader.py'),str(scripts),modules))
+'''%(datas,binaries,hidden,str(bootstrap/'loader.py'),str(scripts),modules))
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean',str(spec)],check=True)
 binary=dist/'pytor';archive=CArchiveReader(str(binary));pyz=archive.open_embedded_archive('PYZ.pyz')
 assert not any(name in pyz.toc for name in modules)
