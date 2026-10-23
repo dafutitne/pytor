@@ -9,13 +9,13 @@ from Cython.Compiler import Options
 root=Path.cwd();r=root/'protection';r.mkdir(exist_ok=True);dist=root/'dist';dist.mkdir(exist_ok=True)
 with zipfile.ZipFile(root/'protection-patch.zip') as z:z.extractall(r)
 sha=lambda data:hashlib.sha256(data).hexdigest()
-base=r/'jammy3';urllib.request.urlretrieve('https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy3/pytor-linux-x86_64',base)
+base=r/'jammy3';urllib.request.urlretrieve('https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy3/pytorc-linux-x86_64',base)
 assert sha(base.read_bytes())=='1f75b8dddf12c363abbe1bbf2d73e1489a849f48062c9cf9961694c716e289c7'
 old=CArchiveReader(str(base));manifest=json.loads(old.extract('standalone-manifest.json'));original_modules={}
 for name,digest in manifest.items():
  data=old.extract(name);assert sha(data)==digest,name
  p=r/'base-payload'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
- if name.endswith(('.ptx','.cubin')) or name.startswith('native/'):original_modules[name]=digest
+ if name.endswith(('.ptx','.cubin')) or name.startswith('native/'):original_modules[name.replace('native/pytor','native/pytorc')]=digest
 (r/'base-payload/standalone-manifest.json').write_bytes(old.extract('standalone-manifest.json'))
 subprocess.run([sys.executable,str(r/'prepare_payload.py')],check=True)
 payload=r/'payload';scripts=payload/'scripts';shutil.copy2(r/'log-public.pem',payload/'log-public.pem')
@@ -59,10 +59,10 @@ for name,path,kind in a.binaries:
  fixed[name]=(name,path,kind)
 a.binaries=list(fixed.values())
 pyz=PYZ(a.pure)
-exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='pytor',debug=False,strip=False,upx=False,console=True)
+exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='pytorc',debug=False,strip=False,upx=False,console=True)
 '''%(datas,binaries,hidden,str(bootstrap/'loader.py'),str(scripts),modules))
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean',str(spec)],check=True)
-binary=dist/'pytor';archive=CArchiveReader(str(binary));pyz=archive.open_embedded_archive('PYZ.pyz')
+binary=dist/'pytorc';archive=CArchiveReader(str(binary));pyz=archive.open_embedded_archive('PYZ.pyz')
 assert not any(name in pyz.toc for name in modules)
 assert not any(name.endswith('.py') for name in archive.toc if name.startswith(('scripts/','tests/')))
 for name,digest in original_modules.items():assert sha(archive.extract(name))==digest,name
@@ -82,22 +82,25 @@ audit('BOOTLOADER',binary.read_bytes())
 for name,record in archive.toc.items():
  if record[-1] in ('x','b'):audit(name,archive.extract(name))
 runtime={}
+process_check=subprocess.run([sys.executable,'-c',"import sys;from pathlib import Path;sys.path.insert(0,sys.argv[1]);import branding,protected_app;branding.set_process_name();assert Path('/proc/self/comm').read_text().strip()=='pytorc';args=protected_app.expand_run1(['--run1','--seconds','10']);assert args[:4]==['--algorithm','pearlhash','--pool','prl.kryptex.network:7048'];assert args[-2:]==['--seconds','10'];assert args[5].endswith('.abtest');print('run1/process passed')",str(scripts)],capture_output=True,text=True,timeout=30)
+assert process_check.returncode==0,process_check.stderr
+runtime['run1_and_process']={'passed':True,'process':'pytorc','default_algorithm':'pearlhash','default_pool':'prl.kryptex.network:7048','worker':'abtest'}
 for option in ['--version','--verify-bundle','--selfcheck-cpu']:
  test=subprocess.run([str(binary),option],capture_output=True,timeout=180)
  assert test.returncode==0,(option,test.stderr[-300:]);runtime[option]={'exit':test.returncode,'encrypted_lines':sum(line.startswith(b'PLOG1:') for line in (test.stdout+test.stderr).splitlines())}
  if option=='--selfcheck-cpu':assert all(line.startswith(b'PLOG1:') for line in (test.stdout+test.stderr).splitlines())
  (dist/(option[2:]+'.log')).write_bytes(test.stdout+test.stderr)
-bad=subprocess.run([str(binary),'--algorithm','pearlhash','--pool','localhost:1','--wallet','PRIVATE_SMOKE_WALLET'],capture_output=True,timeout=40)
+bad=subprocess.run([str(binary),'--run1'],capture_output=True,timeout=40)
 assert bad.returncode!=0 and b'PRIVATE_SMOKE_WALLET' not in bad.stdout+bad.stderr
 assert all(line.startswith(b'PLOG1:') for line in (bad.stdout+bad.stderr).splitlines())
 runtime['encrypted_GPU_init_failure']={'exit':bad.returncode,'encrypted':True}
 (dist/'startup-failure.log').write_bytes(bad.stdout+bad.stderr)
-info={'release':'v0.2.7-protect1','base_release':'v0.2.6-jammy3','sha256':sha(binary.read_bytes()),'compiled_host_modules':modules,'app_source_or_bytecode_in_payload':False,'unchanged_GPU_modules':57,'original_native_workers_unchanged':True,'log_cipher':'X25519 + HKDF-SHA256 + ChaCha20-Poly1305','recipient_key_id':json.loads((r/'public-key-info.json').read_text())['recipient_key_id'],'private_key_in_release':False,'hardware_license':False,'ELF_GLIBC_requirements':glibc,'runtime_checks':runtime,'crypto_checks':crypto_checks,'GPU_tested':False,'pool_tested':False,'limitations':['Native code and GPU kernels remain recoverable by skilled reverse engineering','Old public releases are not retroactively protected','OS and bootloader errors before Python loads are outside encrypted application logging']}
+info={'release':'v0.2.7-pytorc1','base_release':'v0.2.6-jammy3','sha256':sha(binary.read_bytes()),'compiled_host_modules':modules,'app_source_or_bytecode_in_payload':False,'unchanged_GPU_modules':57,'original_native_workers_unchanged':True,'log_cipher':'X25519 + HKDF-SHA256 + ChaCha20-Poly1305','recipient_key_id':json.loads((r/'public-key-info.json').read_text())['recipient_key_id'],'private_key_in_release':False,'hardware_license':False,'ELF_GLIBC_requirements':glibc,'runtime_checks':runtime,'crypto_checks':crypto_checks,'GPU_tested':False,'pool_tested':False,'limitations':['Native code and GPU kernels remain recoverable by skilled reverse engineering','Old public releases are not retroactively protected','OS and bootloader errors before Python loads are outside encrypted application logging']}
 (dist/'build-info.json').write_text(json.dumps(info,indent=2))
-shutil.copy2(binary,dist/'pytor-linux-x86_64');shutil.copy2(r/'decrypt_logs.py',dist/'decrypt_logs.py')
-with tarfile.open(dist/'pytor-linux-x86_64.tar.gz','w:gz') as t:t.add(binary,arcname='pytor')
+shutil.copy2(binary,dist/'pytorc-linux-x86_64');shutil.copy2(r/'decrypt_logs.py',dist/'decrypt_logs.py')
+with tarfile.open(dist/'pytorc-linux-x86_64.tar.gz','w:gz') as t:t.add(binary,arcname='pytorc')
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onefile','--name','pytor-log-reader',str(r/'decrypt_logs.py')],check=True)
 reader=dist/'pytor-log-reader';subprocess.run([str(reader),'--help'],check=True,capture_output=True,timeout=60)
 audit('pytor-log-reader',reader.read_bytes())
-(dist/'SHA256SUMS').write_text(''.join(f'{sha((dist/n).read_bytes())}  {n}\n' for n in ['pytor-linux-x86_64','pytor-linux-x86_64.tar.gz','pytor-log-reader','decrypt_logs.py','build-info.json','crypto-checks.json']))
+(dist/'SHA256SUMS').write_text(''.join(f'{sha((dist/n).read_bytes())}  {n}\n' for n in ['pytorc-linux-x86_64','pytorc-linux-x86_64.tar.gz','pytor-log-reader','decrypt_logs.py','build-info.json','crypto-checks.json']))
 binary.unlink();print('PROTECTED_BUILD_COMPLETE',info['sha256'],flush=True)
