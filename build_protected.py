@@ -9,7 +9,7 @@ from Cython.Compiler import Options
 root=Path.cwd();r=root/'protection';r.mkdir(exist_ok=True);dist=root/'dist';dist.mkdir(exist_ok=True)
 with zipfile.ZipFile(root/'protection-patch.zip') as z:z.extractall(r)
 sha=lambda data:hashlib.sha256(data).hexdigest()
-base=r/'jammy3';urllib.request.urlretrieve('https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy3/pytorc-linux-x86_64',base)
+base=r/'jammy3';urllib.request.urlretrieve('https://github.com/dafutitne/pytor/releases/download/v0.2.6-jammy3/pytor-linux-x86_64',base)
 assert sha(base.read_bytes())=='1f75b8dddf12c363abbe1bbf2d73e1489a849f48062c9cf9961694c716e289c7'
 old=CArchiveReader(str(base));manifest=json.loads(old.extract('standalone-manifest.json'));original_modules={}
 for name,digest in manifest.items():
