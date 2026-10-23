@@ -82,20 +82,21 @@ audit('BOOTLOADER',binary.read_bytes())
 for name,record in archive.toc.items():
  if record[-1] in ('x','b'):audit(name,archive.extract(name))
 runtime={}
-process_check=subprocess.run([sys.executable,'-c',"import sys;from pathlib import Path;sys.path.insert(0,sys.argv[1]);import branding,protected_app;branding.set_process_name();assert Path('/proc/self/comm').read_text().strip()=='pytorc';args=protected_app.expand_run1(['--run1','--seconds','10']);assert args[:4]==['--algorithm','pearlhash','--pool','prl.kryptex.network:7048'];assert args[-2:]==['--seconds','10'];assert args[5].endswith('.abtest');print('run1/process passed')",str(scripts)],capture_output=True,text=True,timeout=30)
+process_check=subprocess.run([sys.executable,'-c',"import sys\nfrom pathlib import Path\nsys.path.insert(0,sys.argv[1])\nimport branding,protected_app\nbranding.set_process_name()\nassert Path('/proc/self/comm').read_text().strip()=='pytorc'\nexpand=protected_app.expand_run1\nprl=expand(['--run1'])\nassert expand(['--build'])==prl\nassert prl==['--algorithm','pearlhash','--pool','prl.kryptex.network:7048','--wallet','prl1pcjd8e4m98gua6nhnyrwa4xzkj5dh0rnrn3znsyd9p2pag9pddj3sgcac9f.abtest']\nassert expand(['--build1'])==['--algorithm','quantus','--pool','qtc.kryptex.network:7049','--wallet','qzpuy5D9bpR6VEW7hbTHmXBQVJ1J2goHYom8KyZCCmt7PapDH.qpob']\nfor preset in ['--run1','--build','--build1']:\n assert expand([preset,'--seconds','10'])[-2:]==['--seconds','10']\nfor bad in [['--build','--build1'],['--run1','--build'],['--build1','--build1'],['--build','--wallet=x'],['--build1','--pool','other:1'],['--run1','--algorithm','quantus']]:\n try:expand(bad)\n except ValueError:pass\n else:raise AssertionError(bad)\nassert expand(['--version'])==['--version']\nprint('preset/process checks passed')\n",str(scripts)],capture_output=True,text=True,timeout=30)
 assert process_check.returncode==0,process_check.stderr
-runtime['run1_and_process']={'passed':True,'process':'pytorc','default_algorithm':'pearlhash','default_pool':'prl.kryptex.network:7048','worker':'abtest'}
+runtime['run1_and_process']={'passed':True,'process':'pytorc','PRL_presets':['--run1','--build'],'QTC_presets':['--build1'],'conflicting_presets_rejected':True}
 for option in ['--version','--verify-bundle','--selfcheck-cpu']:
  test=subprocess.run([str(binary),option],capture_output=True,timeout=180)
  assert test.returncode==0,(option,test.stderr[-300:]);runtime[option]={'exit':test.returncode,'encrypted_lines':sum(line.startswith(b'PLOG1:') for line in (test.stdout+test.stderr).splitlines())}
  if option=='--selfcheck-cpu':assert all(line.startswith(b'PLOG1:') for line in (test.stdout+test.stderr).splitlines())
  (dist/(option[2:]+'.log')).write_bytes(test.stdout+test.stderr)
-bad=subprocess.run([str(binary),'--run1'],capture_output=True,timeout=40)
-assert bad.returncode!=0 and b'PRIVATE_SMOKE_WALLET' not in bad.stdout+bad.stderr
-assert all(line.startswith(b'PLOG1:') for line in (bad.stdout+bad.stderr).splitlines())
-runtime['encrypted_GPU_init_failure']={'exit':bad.returncode,'encrypted':True}
-(dist/'startup-failure.log').write_bytes(bad.stdout+bad.stderr)
-info={'release':'v0.2.7-pytorc1','base_release':'v0.2.6-jammy3','sha256':sha(binary.read_bytes()),'compiled_host_modules':modules,'app_source_or_bytecode_in_payload':False,'unchanged_GPU_modules':57,'original_native_workers_unchanged':True,'log_cipher':'X25519 + HKDF-SHA256 + ChaCha20-Poly1305','recipient_key_id':json.loads((r/'public-key-info.json').read_text())['recipient_key_id'],'private_key_in_release':False,'hardware_license':False,'ELF_GLIBC_requirements':glibc,'runtime_checks':runtime,'crypto_checks':crypto_checks,'GPU_tested':False,'pool_tested':False,'limitations':['Native code and GPU kernels remain recoverable by skilled reverse engineering','Old public releases are not retroactively protected','OS and bootloader errors before Python loads are outside encrypted application logging']}
+for flag,logfile in [('--build','startup-failure.log'),('--build1','qtc-startup-failure.log')]:
+ bad=subprocess.run([str(binary),flag],capture_output=True,timeout=40)
+ assert bad.returncode!=0
+ assert all(line.startswith(b'PLOG1:') for line in (bad.stdout+bad.stderr).splitlines())
+ runtime['encrypted_init_failure_'+flag[2:]]={'exit':bad.returncode,'encrypted':True}
+ (dist/logfile).write_bytes(bad.stdout+bad.stderr)
+info={'release':'v0.2.7-pytorc2','base_release':'v0.2.6-jammy3','sha256':sha(binary.read_bytes()),'compiled_host_modules':modules,'app_source_or_bytecode_in_payload':False,'unchanged_GPU_modules':57,'original_native_workers_unchanged':True,'log_cipher':'X25519 + HKDF-SHA256 + ChaCha20-Poly1305','recipient_key_id':json.loads((r/'public-key-info.json').read_text())['recipient_key_id'],'private_key_in_release':False,'hardware_license':False,'ELF_GLIBC_requirements':glibc,'runtime_checks':runtime,'crypto_checks':crypto_checks,'GPU_tested':False,'pool_tested':False,'limitations':['Native code and GPU kernels remain recoverable by skilled reverse engineering','Old public releases are not retroactively protected','OS and bootloader errors before Python loads are outside encrypted application logging']}
 (dist/'build-info.json').write_text(json.dumps(info,indent=2))
 shutil.copy2(binary,dist/'pytorc-linux-x86_64');shutil.copy2(r/'decrypt_logs.py',dist/'decrypt_logs.py')
 with tarfile.open(dist/'pytorc-linux-x86_64.tar.gz','w:gz') as t:t.add(binary,arcname='pytorc')
